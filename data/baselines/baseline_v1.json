@@ -1,0 +1,103 @@
+{
+  "version": "v2.0",
+  "created_at": "2026-10-06T09:14:25.652084",
+  "feature_count": 12,
+  "statistics": {
+    "process_count": {
+      "mean": 60.0,
+      "std": 1.0,
+      "min": 60.0,
+      "max": 60.0,
+      "p5": 60.0,
+      "p95": 60.0
+    },
+    "child_count": {
+      "mean": 12.0,
+      "std": 1.0,
+      "min": 12.0,
+      "max": 12.0,
+      "p5": 12.0,
+      "p95": 12.0
+    },
+    "process_lifetime": {
+      "mean": 0.0,
+      "std": 1.0,
+      "min": 0.0,
+      "max": 0.0,
+      "p5": 0.0,
+      "p95": 0.0
+    },
+    "parent_rarity": {
+      "mean": 0.32,
+      "std": 1.0,
+      "min": 0.32,
+      "max": 0.32,
+      "p5": 0.32,
+      "p95": 0.32
+    },
+    "chain_depth": {
+      "mean": 4.0,
+      "std": 1.0,
+      "min": 4.0,
+      "max": 4.0,
+      "p5": 4.0,
+      "p95": 4.0
+    },
+    "network_count": {
+      "mean": 0.0,
+      "std": 1.0,
+      "min": 0.0,
+      "max": 0.0,
+      "p5": 0.0,
+      "p95": 0.0
+    },
+    "unique_ips": {
+      "mean": 0.0,
+      "std": 1.0,
+      "min": 0.0,
+      "max": 0.0,
+      "p5": 0.0,
+      "p95": 0.0
+    },
+    "unique_ports": {
+      "mean": 0.0,
+      "std": 1.0,
+      "min": 0.0,
+      "max": 0.0,
+      "p5": 0.0,
+      "p95": 0.0
+    },
+    "connection_burst_rate": {
+      "mean": 0.0,
+      "std": 1.0,
+      "min": 0.0,
+      "max": 0.0,
+      "p5": 0.0,
+      "p95": 0.0
+    },
+    "file_count": {
+      "mean": 0.0,
+      "std": 1.0,
+      "min": 0.0,
+      "max": 0.0,
+      "p5": 0.0,
+      "p95": 0.0
+    },
+    "registry_count": {
+      "mean": 0.0,
+      "std": 1.0,
+      "min": 0.0,
+      "max": 0.0,
+      "p5": 0.0,
+      "p95": 0.0
+    },
+    "rarity_score": {
+      "mean": 0.21,
+      "std": 1.0,
+      "min": 0.21,
+      "max": 0.21,
+      "p5": 0.21,
+      "p95": 0.21
+    }
+  }
+}
