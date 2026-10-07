@@ -60,7 +60,7 @@
 #### Step 3: Academic Evaluation (30 seconds)
 1. Show the evaluation benchmark:
    ```bash
-   python evaluation/evaluate.py
+   python evaluate.py
    ```
 2. **Key talking point**:
    * *"When we test pure Isolation Forest ML on heavy developer workloads, it has a 22.2% False Positive Rate. But when we use our proposed Hybrid Fusion engine, the False Positive Rate drops to 0.0% while maintaining 100% detection recall."*

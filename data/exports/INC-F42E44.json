@@ -1,0 +1,92 @@
+{
+  "report_generated_at": "2026-10-07T13:19:42.505607",
+  "incident": {
+    "incident_id": "INC-F42E44",
+    "alert_id": "ALT-66A70B9C",
+    "timestamp": "2026-10-07T13:19:42.474408",
+    "process_name": "powershell.exe",
+    "pid": 5824,
+    "severity": "Critical",
+    "recommended_actions": "1. Isolate endpoint from network adapter. 2. Terminate malicious process tree. 3. Quarantine dropped binaries in Temp. 4. Revert autostart Registry Run keys.",
+    "response_simulation_log": "Pending response simulation review.",
+    "status": "Open"
+  },
+  "associated_alert": {
+    "alert_id": "ALT-66A70B9C",
+    "timestamp": "2026-10-07T13:19:42.474408",
+    "process_name": "powershell.exe",
+    "pid": 5824,
+    "parent_pid": 4120,
+    "risk_score": 83.9,
+    "risk_tier": "Critical",
+    "ml_score": 42.2,
+    "rule_score": 100.0,
+    "graph_score": 98.0,
+    "sequence_score": 95.0,
+    "mitre_technique_id": "T1071.001",
+    "all_mitre_techniques": [
+      "T1071.001",
+      "T1082",
+      "T1204.002",
+      "T1547.001",
+      "T1059.001"
+    ],
+    "mitre_details": [
+      {
+        "id": "T1059.001",
+        "name": "Command and Scripting Interpreter: PowerShell",
+        "tactic": "Execution",
+        "description": "Adversaries may abuse PowerShell commands and scripts for execution and automation.",
+        "url": "https://attack.mitre.org/techniques/T1059/001/"
+      },
+      {
+        "id": "T1071.001",
+        "name": "Application Layer Protocol: Web Protocols",
+        "tactic": "Command and Control",
+        "description": "Adversaries may communicate using application layer protocols (HTTP/HTTPS) to avoid detection.",
+        "url": "https://attack.mitre.org/techniques/T1071/001/"
+      },
+      {
+        "id": "T1082",
+        "name": "System Information Discovery",
+        "tactic": "Discovery",
+        "description": "An adversary may attempt to get detailed information about the operating system and hardware.",
+        "url": "https://attack.mitre.org/techniques/T1082/"
+      },
+      {
+        "id": "T1204.002",
+        "name": "User Execution: Malicious File",
+        "tactic": "Execution",
+        "description": "An adversary may rely on a user opening a weaponized document or macro.",
+        "url": "https://attack.mitre.org/techniques/T1204/002/"
+      },
+      {
+        "id": "T1547.001",
+        "name": "Boot or Logon Autostart: Registry Run Keys",
+        "tactic": "Persistence",
+        "description": "Adversaries may achieve persistence by modifying Windows registry Run or RunOnce keys.",
+        "url": "https://attack.mitre.org/techniques/T1547/001/"
+      }
+    ],
+    "reasons": "Office Spawning Script Host | Obfuscated / Encoded PowerShell | System Discovery Profiling | System Discovery Profiling | Script Interpreter Outbound Connection | Suspicious Autostart Registry Modification | Anomalous process ancestry graph structure (score: 98.0) | Multi-stage temporal attack kill-chain progression (score: 95.0)",
+    "evidence": {
+      "events_count": 7,
+      "anomalous_edges": [
+        {
+          "parent_pid": 4120,
+          "child_pid": 5824,
+          "parent_name": "winword.exe",
+          "child_name": "powershell.exe",
+          "description": "Suspicious execution chain: winword.exe spawned powershell.exe"
+        },
+        {
+          "parent_pid": 5824,
+          "child_pid": 6112,
+          "parent_name": "powershell.exe",
+          "child_name": "whoami.exe",
+          "description": "Suspicious execution chain: powershell.exe spawned whoami.exe"
+        }
+      ]
+    }
+  }
+}

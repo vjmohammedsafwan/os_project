@@ -1,11 +1,144 @@
 """
-Controlled Lab Telemetry Simulator & Replay Engine
-Generates realistic normal baseline activity and controlled multi-stage attack scenarios.
-Stages 2, 5, 9, and 15 requirement.
+Endpoint Telemetry Collector & Workload Simulator
+Captures live Windows process hierarchies (psutil), queries Sysmon Event Logs,
+and generates realistic normal/attack/drift workloads.
+Minimal, robust, self-contained.
 """
 from datetime import datetime, timedelta
 import random
+import subprocess
+import json
 from typing import List, Dict, Any
+import psutil
+
+from database import normalize_process_name, normalize_event
+
+# ==========================================
+# 1. LIVE HOST COLLECTORS (WINDOWS)
+# ==========================================
+
+def capture_live_host_processes(max_processes: int = 80) -> List[Dict[str, Any]]:
+    """
+    Captures live running processes directly from the local Windows machine.
+    Reconstructs PID, PPID, process name, command line, and network sockets using psutil.
+    """
+    events = []
+    ts = datetime.utcnow().isoformat()
+
+    proc_cache = {}
+    for proc in psutil.process_iter(['pid', 'name', 'ppid']):
+        try:
+            proc_cache[proc.info['pid']] = proc.info.get('name', '')
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+    count = 0
+    for proc in psutil.process_iter(['pid', 'ppid', 'name', 'cmdline', 'username']):
+        if count >= max_processes:
+            break
+        try:
+            info = proc.info
+            pid = info.get('pid')
+            ppid = info.get('ppid')
+            p_name = normalize_process_name(info.get('name'))
+            parent_name = normalize_process_name(proc_cache.get(ppid, 'explorer.exe'))
+
+            cmdline_list = info.get('cmdline') or []
+            cmdline = " ".join(cmdline_list) if cmdline_list else p_name
+            user = info.get('username') or "NT AUTHORITY\\SYSTEM"
+
+            dest_ip = ""
+            dest_port = 0
+            try:
+                conns = proc.net_connections(kind='inet')
+                if conns and conns[0].raddr:
+                    dest_ip = conns[0].raddr.ip
+                    dest_port = conns[0].raddr.port
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+
+            events.append({
+                "timestamp": ts,
+                "event_id": 1,
+                "event_type": "ProcessCreate",
+                "process_name": p_name,
+                "pid": pid,
+                "parent_pid": ppid,
+                "parent_process_name": parent_name,
+                "command_line": cmdline[:250],
+                "user": user,
+                "dest_ip": dest_ip,
+                "dest_port": dest_port,
+                "file_path": "",
+                "registry_path": ""
+            })
+            count += 1
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+    return events
+
+
+def is_sysmon_active() -> bool:
+    """Checks if Microsoft-Windows-Sysmon service is installed and running."""
+    try:
+        cmd = "powershell -NoProfile -Command \"Get-Service -Name '*sysmon*' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Status\""
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+        return "running" in res.stdout.strip().lower()
+    except Exception:
+        return False
+
+
+def collect_live_sysmon_events(max_events: int = 50) -> List[Dict[str, Any]]:
+    """
+    Collects the most recent Sysmon events from Windows Event Log via PowerShell.
+    Gracefully returns an empty list if Sysmon is not installed.
+    """
+    if not is_sysmon_active():
+        return []
+
+    ps_script = f"""
+    $events = Get-WinEvent -LogName 'Microsoft-Windows-Sysmon/Operational' -MaxEvents {max_events} -ErrorAction SilentlyContinue
+    if ($events) {{
+        $events | ForEach-Object {{
+            $xml = [xml]$_.ToXml()
+            $eventData = @{{}}
+            $eventData['EventID'] = $_.Id
+            $eventData['TimeCreated'] = $_.TimeCreated.ToString('o')
+            $xml.Event.EventData.Data | ForEach-Object {{
+                $eventData[$_.Name] = $_.'#text'
+            }}
+            [PSCustomObject]$eventData | ConvertTo-Json -Compress
+        }}
+    }}
+    """
+    try:
+        proc = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_script],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if proc.returncode != 0 or not proc.stdout.strip():
+            return []
+
+        raw_events = []
+        for line in proc.stdout.strip().splitlines():
+            line = line.strip()
+            if line:
+                try:
+                    data = json.loads(line)
+                    raw_events.append(normalize_event(data))
+                except Exception:
+                    continue
+        return raw_events
+    except Exception:
+        return []
+
+
+# ==========================================
+# 2. LAB WORKLOAD SIMULATORS
+# ==========================================
 
 def generate_normal_baseline_events(count: int = 150, base_time: datetime = None) -> List[Dict[str, Any]]:
     """
@@ -35,7 +168,6 @@ def generate_normal_baseline_events(count: int = 150, base_time: datetime = None
         pid = random.randint(1000, 9999)
         ppid = random.randint(500, 999)
 
-        # 60% Process creations, 25% Network traffic, 15% File writes
         action_type = random.random()
         if action_type < 0.60:
             events.append({
@@ -92,12 +224,12 @@ def generate_normal_baseline_events(count: int = 150, base_time: datetime = None
 def generate_macro_attack_scenario(base_time: datetime = None) -> List[Dict[str, Any]]:
     """
     Simulates a realistic multi-stage kill-chain:
-    Stage 1: User opens weaponized Word document (winword.exe).
-    Stage 2: Word document spawns powershell.exe with hidden encoded flags.
-    Stage 3: Discovery commands (whoami.exe, ipconfig.exe).
-    Stage 4: Outbound C2 socket connection to unknown foreign IP on port 4444.
-    Stage 5: Ingress tool transfer (dropping beacon.exe in AppData).
-    Stage 6: Persistence via Registry Run key modification.
+    1. User opens weaponized Word document (winword.exe).
+    2. Word spawns powershell.exe with hidden encoded flags.
+    3. Host discovery (whoami.exe, ipconfig.exe).
+    4. Outbound C2 socket connection to unknown remote IP on port 4444.
+    5. Ingress tool transfer (dropping beacon.exe in AppData).
+    6. Persistence via Registry Run key modification.
     """
     if base_time is None:
         base_time = datetime.utcnow()
@@ -105,7 +237,6 @@ def generate_macro_attack_scenario(base_time: datetime = None) -> List[Dict[str,
     word_pid = 4120
     ps_pid = 5824
     disc_pid = 6112
-    beacon_pid = 7240
 
     scenario = [
         # 1. Office execution
@@ -197,9 +328,8 @@ def generate_macro_attack_scenario(base_time: datetime = None) -> List[Dict[str,
 
 def generate_drift_workload(count: int = 80, base_time: datetime = None) -> List[Dict[str, Any]]:
     """
-    Simulates a benign change in workload (Concept Drift):
-    A developer initiates intensive local compilation and npm package installations.
-    Higher process count and file burst rate, but completely normal parentage.
+    Simulates a benign developer workload (Concept Drift):
+    Heavy compilation, git, and npm operations. Higher frequency, but legitimate lineage.
     """
     if base_time is None:
         base_time = datetime.utcnow()

@@ -5,29 +5,27 @@ Enables fast, reliable end-to-end runs for reviewer presentations and live demon
 """
 import argparse
 import sys
-from datetime import datetime
 from pathlib import Path
 
-from config.settings import DB_PATH
-from processing.database import init_db, insert_event, insert_alert, insert_incident, fetch_all_alerts, get_connection
-from collector.lab_simulator import (
+from database import init_db, insert_event, insert_alert, insert_incident
+from collector import (
     generate_normal_baseline_events,
-    generate_macro_attack_scenario,
-    generate_drift_workload
+    generate_macro_attack_scenario
 )
-from collector.live_sysmon import is_sysmon_active, collect_live_sysmon_events
-from features.feature_extractor import extract_window_features, to_feature_matrix
-from models.baseline_manager import calculate_baseline_statistics, save_baseline, load_baseline
-from models.isolation_forest import IsolationForestEngine
-from models.concept_drift import ConceptDriftEngine
-from detection.process_graph import ProcessGraphEngine
-from detection.rule_engine import evaluate_rules
-from detection.sequence_detector import SequenceDetector
-from detection.mitre_mapper import map_event_to_techniques
-from detection.risk_fusion import HybridRiskFusionEngine
-from detection.explainability import ExplainabilityEngine
-from reports.response_simulator import simulate_containment_action
-from reports.report_generator import export_incident_to_pdf, export_incident_to_json
+from detector import (
+    extract_window_features,
+    to_feature_matrix,
+    calculate_baseline_statistics,
+    save_baseline,
+    IsolationForestEngine,
+    ProcessGraphEngine,
+    evaluate_rules,
+    SequenceDetector,
+    HybridRiskFusionEngine,
+    simulate_containment_action,
+    export_incident_to_pdf,
+    export_incident_to_json
+)
 
 def setup_system():
     """Initializes tables and directories."""
@@ -39,8 +37,7 @@ def train_baseline_pipeline(count: int = 150):
     """Generates normal baseline telemetry and trains Isolation Forest model."""
     print(f"[*] Simulating {count} normal baseline endpoint events (Chrome, VS Code, Explorer)...")
     events = generate_normal_baseline_events(count=count)
-    
-    # Store events in DB
+
     for ev in events:
         insert_event(ev)
 
@@ -61,7 +58,7 @@ def train_baseline_pipeline(count: int = 150):
 
 def run_attack_detection_demo():
     """
-    Executes a complete demonstration of the multi-stage attack detection:
+    Executes a complete demonstration of multi-stage attack detection:
     1. Injects weaponized Word macro scenario.
     2. Runs 4-signal detection (ML + Rules + Graph + Sequence).
     3. Triggers Critical Alert and Incident record.
@@ -142,7 +139,6 @@ def run_attack_detection_demo():
     print(f"[+] MITRE ATT&CK:     {', '.join(alert['all_mitre_techniques'])}")
     print(f"[+] REASONING:        {alert['reasons']}")
 
-    # Store in database
     insert_alert(alert)
 
     # 5. Incident & Safe Response Simulation
@@ -158,7 +154,6 @@ def run_attack_detection_demo():
         print("      " + sim2["log_entry"])
         print("      " + sim3["log_entry"])
 
-        # Generate Reports
         pdf_path = export_incident_to_pdf(incident, alert)
         json_path = export_incident_to_json(incident, alert)
         print(f"\n[+] Formal Incident PDF exported to:  {pdf_path}")
@@ -174,6 +169,7 @@ if __name__ == "__main__":
     parser.add_argument("--setup", action="store_true", help="Initialize SQLite database")
     parser.add_argument("--train", action="store_true", help="Generate baseline and train ML model")
     parser.add_argument("--demo", action="store_true", help="Run live attack detection demonstration")
+    parser.add_argument("--eval", action="store_true", help="Run academic evaluation benchmark")
     args = parser.parse_args()
 
     if args.setup:
@@ -181,5 +177,8 @@ if __name__ == "__main__":
     elif args.train:
         setup_system()
         train_baseline_pipeline()
+    elif args.eval:
+        from evaluate import run_evaluation_benchmark
+        run_evaluation_benchmark()
     elif args.demo or len(sys.argv) == 1:
         run_attack_detection_demo()
